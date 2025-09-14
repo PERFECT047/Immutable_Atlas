@@ -1,7 +1,9 @@
 package p2p
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 )
@@ -52,7 +54,11 @@ func (t *TCPTransport) startAcceptLoop() {
 	for {
 		conn, err := t.listener.Accept()
 		if err != nil {
-			fmt.Printf("TCP Accpt error: %s\n", err)
+			if errors.Is(err, net.ErrClosed) {
+				return
+			}
+			fmt.Printf("TCP accept error: %s\n", err)
+			continue
 		}
 
 		fmt.Printf("new connection connecting %+v\n", conn)
@@ -63,11 +69,11 @@ func (t *TCPTransport) startAcceptLoop() {
 
 func (t *TCPTransport) handleConnections(conn net.Conn) {
 
-	peer := createTCPPeer(conn, true)
+	defer conn.Close()
+	peer := createTCPPeer(conn, false)
 
 	if err := t.ShakeHand(peer); err != nil {
 		fmt.Printf("TCP handshake error: %s\n", err)
-		conn.Close()
 		return 
 	}
 
@@ -75,7 +81,11 @@ func (t *TCPTransport) handleConnections(conn net.Conn) {
 
 	for {
 		if err := t.Decoder.Decode(conn, msg); err != nil {
-			fmt.Printf("TCP error: %s\n", err)
+			if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+				fmt.Printf("connection closed: %s\n", err)
+				return
+			}
+			fmt.Printf("TCP decode error: %s\n", err)
 			continue
 		}
 
