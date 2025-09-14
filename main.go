@@ -7,11 +7,15 @@ import (
 )
 
 func main() {
-	tr := p2p.CreateTCPTransport(":3000")
+	tr := p2p.TCPTransport{
+		ListenAddress: ":3000",
+		ShakeHand:     p2p.NOPHandshakeFunc,
+		Decoder:       p2p.NOPDecoder{},
+	}
 
 	if err := tr.ListenAndAccept(); err != nil {
 		log.Fatal(err)
 	}
 
-	select{}
+	select {}
 }
